@@ -1,11 +1,11 @@
 import './App.css'
-import Map from './components/Map'
+import MapCircle from './components/MapCircle'
 
 function App() {
 
   return (
     <>
-    <Map/>
+    <MapCircle/>
     </>
   )
 }
