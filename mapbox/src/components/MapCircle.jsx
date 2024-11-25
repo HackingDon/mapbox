@@ -8,16 +8,20 @@ import * as turf from "@turf/turf";
 
 const MapCircle = () => {
   const mapRef = useRef();
-  const [polygon,setPolygon] = useState();
-  // const [country,setCountry] = useState([])
+  const [polygon,setPolygon] = useState({
+    type: "FeatureCollection",
+    features: [],
+});
+  const [country,setCountry] = useState([])
+  const [geojson,setGeojson] = useState()
   const [inputValue, setInputValue] = useState("");
   const [view, setView] = useState({
     longitude: 10,
     latitude: 30,
-    zoom: 1.9,
+    zoom: 1.92,
   });
   const [lanlat, setLanlat] = useState(null);
-  let myCircle;
+  let myCircle,radius,center,features;
   const map = mapRef.current?.getMap();
   useEffect(() => {
     if (mapRef.current && lanlat) {
@@ -27,6 +31,15 @@ const MapCircle = () => {
         fillColor: "#29AB87",
       });
       myCircle.addTo(map);
+      radius = myCircle.getRadius()/1000
+      center = myCircle.getCenter()
+      const updatedGeoJSON = turf.circle([center.lng, center.lat], radius, {
+        steps: 30,
+        units: "kilometers",
+      })
+      updatedGeoJSON.geometry.coordinates[0].map((data)=>{
+        fetchCountry(data[1],data[0])
+      })
     }
     return () => {
       if (myCircle) {
@@ -36,12 +49,13 @@ const MapCircle = () => {
   }, [lanlat]);
   function handleClick(evt) {
     const lngLat = evt.lngLat;
-    const features =evt.features;
+    features =evt.features;
     const bounds = bbox({
       type: "FeatureCollection",
-      features: [features[0]],
+      features:[features[0]],
     });
     mapRef.current.fitBounds(bounds, { padding: 20 });
+    setCountry([])
     setPolygon({
       type: "FeatureCollection",
       features: [features[0]],
@@ -58,67 +72,83 @@ const MapCircle = () => {
       zoom: 1.9,
     });
   }
-  setInterval(()=>{
-    if (myCircle) {
-      const radius = myCircle.getRadius() / 1000; 
-      const center = myCircle.getCenter();
-
-      const updatedGeoJSON = turf.circle([center.lng, center.lat], radius, {
-        steps: 3,
+ setInterval(()=>{
+  if(myCircle){
+    let updateRad = myCircle.getRadius() /1000
+    let updateCen = myCircle.getCenter()
+    if(radius != updateRad){
+      const updatedGeoJSON = turf.circle([updateCen.lng, updateCen.lat], updateRad, {
+        steps: 30,
         units: "kilometers",
       })
-      // updatedGeoJSON.geometry.coordinates[0].map((data)=>{
-      //   fetchCountry(data[1],data[0])
-      // })
+        radius = updateRad;
+      center = updateCen;
+      updatedGeoJSON.geometry.coordinates[0].map((data)=>{
+        fetchCountry(data[1],data[0])
+      })
     }
-  },5000)
-  // const fetchCountry = async (lat, lng) => {
-  //   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${"pk.eyJ1IjoiYWRoaXRoeWFhMzEiLCJhIjoiY2x4eW83ZzBlMDJrMjJrcXZ2ZHZ4cGFhNSJ9.oKfx4UDtPP-AQPz_UCi8zg"}&types=country`;
+  }
+ },500)
+  const fetchData = async () => {//fetch data
+    const url = `https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson`;
 
-  //   try {
-  //     const response = await fetch(url);
-  //     const data = await response.json();
-  //     if (data.features && data.features.length > 0) {
-  //       const countryName = data.features[0].place_name;
-  //       !country.includes(countryName)?setCountry(prev=>[...prev,countryName]):'';
-  //     }
-  //   } catch (error) {
-  //     console.error('Error fetching country info:', error);
-  //   }
-  // };
-  // const fetchBoundingBox = async (countryName) => {
-  //   try {
-  //     const response = await fetch(
-  //       `https://nominatim.openstreetmap.org/search?q=${countryName}&format=json&polygon_geojson=1`
-  //     );
-  //     const data = await response.json();
-  //     if (data[0]?.geojson) {
-  //       setPolygon((prev)=>({
-  //         ...prev,
-  //         feature:[...prev.feature,{
-  //           type:"Feature",
-  //           geometry:data[0].geojson
-  //         }]
-  //       }))
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching bounding box:", error);
-  //   }
-  // };
-  // useEffect(()=>{
-  //   setCombineddata({
-  //     type:'FeatureCollection',
-  //     features:polygon,
-  //   })
-  // },[polygon])
-  // console.log(polygon)
-  //   useEffect(()=>{
-  //     country.forEach((con)=>{
-  //       fetchBoundingBox(con)
-  //     })
-  //   },[country])
-
-
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.features && data.features.length > 0) {
+        setGeojson(data)
+      }
+    } catch (error) {
+      console.error('Error fetching country info:', error);
+    }
+  };
+  useEffect(()=>{
+    fetchData()
+  },[])
+  useEffect(()=>{
+    features?setPolygon({
+      type: "FeatureCollection",
+      features: [features[0]],
+    }):''
+    country.forEach((con)=>{
+      if(con == 'United States'){
+        getCountryGeoJSON('United States of America')
+      }
+      else{
+        getCountryGeoJSON(con)
+      }
+    })
+  },[country])
+  const fetchCountry = async (lat, lng) => {//fetch country
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${"pk.eyJ1IjoiYWRoaXRoeWFhMzEiLCJhIjoiY2x4eW83ZzBlMDJrMjJrcXZ2ZHZ4cGFhNSJ9.oKfx4UDtPP-AQPz_UCi8zg"}&types=country`;
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.features && data.features.length > 0) {
+        const countryName = data.features[0].place_name;
+        setCountry((prev) => {
+          const normalizedCountryName = countryName.trim().toLowerCase();
+          if (!prev.some((name) => name.toLowerCase() === normalizedCountryName)) {
+            return [...prev, countryName];
+          }
+          return prev;
+        });
+        
+      }
+    } catch (error) {
+      console.error('Error fetching country info:', error);
+    }
+  };
+  const getCountryGeoJSON = (countryName) => {//geojson data
+    if (!geojson) return null;
+    const countryFeature = geojson.features.filter(
+      (feature) => feature.properties.admin.toLowerCase() === countryName.toLowerCase()
+    );
+   setPolygon({
+      ...polygon,
+      features:[...polygon.features,countryFeature[0]]
+    });
+  }
   return (
     <>
       <Map
@@ -148,13 +178,13 @@ const MapCircle = () => {
         <Source
           id="countries"
           type="geojson"
-          data="https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson"
+          data={geojson}
         >
           <Layer
             id="countries-layer"
             type="fill"
             paint={{
-              "fill-color": "#fff",
+              "fill-color": "#000",
               "fill-opacity": 0,
             }}
           />
@@ -195,8 +225,8 @@ const MapCircle = () => {
           <Layer
             type="fill"
             paint={{
-              "fill-color": "#000",
-              "fill-opacity": 0.5,
+              "fill-color": "#ff7700",
+              "fill-opacity": 0.1,
             }}
           />
         </Source>}
