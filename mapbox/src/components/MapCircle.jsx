@@ -3,25 +3,25 @@ import Map, { Marker, NavigationControl, Source, Layer } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import MapboxCircle from "mapbox-gl-circle";
 import { Geocoder } from "@mapbox/search-js-react";
-import bbox from '@turf/bbox'
+import bbox from "@turf/bbox";
 import * as turf from "@turf/turf";
 
 const MapCircle = () => {
   const mapRef = useRef();
-  const [polygon,setPolygon] = useState({
+  const [polygon, setPolygon] = useState({
     type: "FeatureCollection",
     features: [],
-});
-  const [country,setCountry] = useState([])
-  const [geojson,setGeojson] = useState()
+  });
+  const [country, setCountry] = useState([]);
+  const [geojson, setGeojson] = useState();
   const [inputValue, setInputValue] = useState("");
   const [view, setView] = useState({
     longitude: 10,
     latitude: 30,
-    zoom: 1.92,
+    zoom: 1.9,
   });
   const [lanlat, setLanlat] = useState(null);
-  let myCircle,radius,center,features;
+  let myCircle, radius, center, features;
   const map = mapRef.current?.getMap();
   useEffect(() => {
     if (mapRef.current && lanlat) {
@@ -31,15 +31,15 @@ const MapCircle = () => {
         fillColor: "#29AB87",
       });
       myCircle.addTo(map);
-      radius = myCircle.getRadius()/1000
-      center = myCircle.getCenter()
+      radius = myCircle.getRadius() / 1000;
+      center = myCircle.getCenter();
       const updatedGeoJSON = turf.circle([center.lng, center.lat], radius, {
         steps: 30,
         units: "kilometers",
-      })
-      updatedGeoJSON.geometry.coordinates[0].map((data)=>{
-        fetchCountry(data[1],data[0])
-      })
+      });
+      updatedGeoJSON.geometry.coordinates[0].map((data) => {
+        fetchCountry(data[1], data[0]);
+      });
     }
     return () => {
       if (myCircle) {
@@ -49,17 +49,17 @@ const MapCircle = () => {
   }, [lanlat]);
   function handleClick(evt) {
     const lngLat = evt.lngLat;
-    features =evt.features;
+    features = evt.features;
     const bounds = bbox({
       type: "FeatureCollection",
-      features:[features[0]],
+      features: [features[0]],
     });
     mapRef.current.fitBounds(bounds, { padding: 20 });
-    setCountry([])
+    setCountry([]);
     setPolygon({
       type: "FeatureCollection",
       features: [features[0]],
-    })
+    });
     setLanlat({
       lng: lngLat.lng,
       lat: lngLat.lat,
@@ -72,54 +72,67 @@ const MapCircle = () => {
       zoom: 1.9,
     });
   }
- setInterval(()=>{
-  if(myCircle){
-    let updateRad = myCircle.getRadius() /1000
-    let updateCen = myCircle.getCenter()
-    if(radius != updateRad){
-      const updatedGeoJSON = turf.circle([updateCen.lng, updateCen.lat], updateRad, {
-        steps: 30,
-        units: "kilometers",
-      })
+  setInterval(() => {
+    if (myCircle) {
+      let updateRad = myCircle.getRadius() / 1000;
+      let updateCen = myCircle.getCenter();
+      if (radius != updateRad) {
+        if (radius > updateRad) {
+          setCountry([]);
+          setPolygon({
+            type: "FeatureCollection",
+            features: [],
+          });
+        }
+        const updatedGeoJSON = turf.circle(
+          [updateCen.lng, updateCen.lat],
+          updateRad,
+          {
+            steps: 30,
+            units: "kilometers",
+          }
+        );
         radius = updateRad;
-      center = updateCen;
-      updatedGeoJSON.geometry.coordinates[0].map((data)=>{
-        fetchCountry(data[1],data[0])
-      })
+        center = updateCen;
+        updatedGeoJSON.geometry.coordinates[0].map((data) => {
+          fetchCountry(data[1], data[0]);
+        });
+      }
     }
-  }
- },500)
-  const fetchData = async () => {//fetch data
+  }, 500);
+  const fetchData = async () => {
+    //fetch data
     const url = `https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson`;
-
     try {
       const response = await fetch(url);
       const data = await response.json();
       if (data.features && data.features.length > 0) {
-        setGeojson(data)
+        setGeojson(data);
       }
     } catch (error) {
-      console.error('Error fetching country info:', error);
+      console.error("Error fetching country info:", error);
     }
   };
-  useEffect(()=>{
-    fetchData()
-  },[])
-  useEffect(()=>{
-    features?setPolygon({
-      type: "FeatureCollection",
-      features: [features[0]],
-    }):''
-    country.forEach((con)=>{
-      if(con == 'United States'){
-        getCountryGeoJSON('United States of America')
+  useEffect(() => {
+    fetchData();
+  }, []);
+  useEffect(() => {
+    features
+      ? setPolygon({
+          type: "FeatureCollection",
+          features: [features[0]],
+        })
+      : "";
+    country.forEach((con) => {
+      if (con == "United States") {
+        getCountryGeoJSON("United States of America");
+      } else {
+        getCountryGeoJSON(con);
       }
-      else{
-        getCountryGeoJSON(con)
-      }
-    })
-  },[country])
-  const fetchCountry = async (lat, lng) => {//fetch country
+    });
+  }, [country]);
+  const fetchCountry = async (lat, lng) => {
+    //fetch country
     const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${"pk.eyJ1IjoiYWRoaXRoeWFhMzEiLCJhIjoiY2x4eW83ZzBlMDJrMjJrcXZ2ZHZ4cGFhNSJ9.oKfx4UDtPP-AQPz_UCi8zg"}&types=country`;
     try {
       const response = await fetch(url);
@@ -128,27 +141,30 @@ const MapCircle = () => {
         const countryName = data.features[0].place_name;
         setCountry((prev) => {
           const normalizedCountryName = countryName.trim().toLowerCase();
-          if (!prev.some((name) => name.toLowerCase() === normalizedCountryName)) {
+          if (
+            !prev.some((name) => name.toLowerCase() === normalizedCountryName)
+          ) {
             return [...prev, countryName];
           }
           return prev;
         });
-        
       }
     } catch (error) {
-      console.error('Error fetching country info:', error);
+      console.error("Error fetching country info:", error);
     }
   };
-  const getCountryGeoJSON = (countryName) => {//geojson data
+  const getCountryGeoJSON = (countryName) => {
+    //geojson data
     if (!geojson) return null;
     const countryFeature = geojson.features.filter(
-      (feature) => feature.properties.admin.toLowerCase() === countryName.toLowerCase()
+      (feature) =>
+        feature.properties.admin.toLowerCase() === countryName.toLowerCase()
     );
-   setPolygon({
+    setPolygon({
       ...polygon,
-      features:[...polygon.features,countryFeature[0]]
+      features: [...polygon.features, countryFeature[0]],
     });
-  }
+  };
   return (
     <>
       <Map
@@ -158,7 +174,7 @@ const MapCircle = () => {
         mapboxAccessToken="pk.eyJ1IjoiYWRoaXRoeWFhMzEiLCJhIjoiY2x4eW83ZzBlMDJrMjJrcXZ2ZHZ4cGFhNSJ9.oKfx4UDtPP-AQPz_UCi8zg"
         {...view}
         onMove={(e) => setView(e.viewState)}
-        interactiveLayerIds={['countries-layer']} 
+        interactiveLayerIds={["countries-layer"]}
         onClick={handleClick}
       >
         <div style={{ width: "300px" }}>
@@ -175,11 +191,7 @@ const MapCircle = () => {
           />
         </div>
 
-        <Source
-          id="countries"
-          type="geojson"
-          data={geojson}
-        >
+        <Source id="countries" type="geojson" data={geojson}>
           <Layer
             id="countries-layer"
             type="fill"
@@ -221,15 +233,17 @@ const MapCircle = () => {
           <NavigationControl showCompass={true} showZoom={true} />
         </div>
         {lanlat && <Marker longitude={lanlat.lng} latitude={lanlat.lat} />}
-        {polygon && <Source type="geojson" data={polygon}>
-          <Layer
-            type="fill"
-            paint={{
-              "fill-color": "#ff7700",
-              "fill-opacity": 0.1,
-            }}
-          />
-        </Source>}
+        {polygon && (
+          <Source type="geojson" data={polygon}>
+            <Layer
+              type="fill"
+              paint={{
+                "fill-color": "#ff7700",
+                "fill-opacity": 0.1,
+              }}
+            />
+          </Source>
+        )}
       </Map>
     </>
   );
