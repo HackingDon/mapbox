@@ -46,10 +46,11 @@ const MapCircle = () => {
         myCircle.remove();
       }
     };
-  }, [lanlat]);
+  }, [lanlat]);      	
   function handleClick(evt) {
     const lngLat = evt.lngLat;
     features = evt.features;
+    console.log(lngLat)
     const bounds = bbox({
       type: "FeatureCollection",
       features: [features[0]],
