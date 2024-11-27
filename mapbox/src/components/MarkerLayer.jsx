@@ -162,7 +162,7 @@ const MarkerLayer = () => {
             type="fill"
             paint={{
               "fill-color": "#ff7700",
-              "fill-opacity": 0.3,
+              "fill-opacity": 0.4,
             }}
           />
         </Source>
