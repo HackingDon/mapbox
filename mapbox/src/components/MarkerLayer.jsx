@@ -1,112 +1,123 @@
 import React, { useState, useRef, useEffect } from "react";
-import Map, { Marker, Source, Layer,Popup } from "react-map-gl";
+import Map, { Marker, Source, Layer, Popup } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import axios from "axios";
 
 let features;
 const MarkerLayer = () => {
   const mapRef = useRef();
   const [polygon, setPolygon] = useState();
-  const [pop,setPop] = useState({
-    id:'',
-    con:false,
-  })
+  const [pop, setPop] = useState({
+    id: "",
+    con: false,
+  });
   const [marks, setMarks] = useState([
     {
       lat: 48.8566,
       lng: 2.3522,
       color: "red",
-      city:'Paris'
+      city: "Paris",
     },
     {
       lat: 43.2965,
       lng: 5.3698,
       color: "red",
-      city:'Marseille'
+      city: "Marseille",
     },
     {
-      lat: 45.7640,
+      lat: 45.764,
       lng: 4.8357,
       color: "red",
-      city:'Lyon'
+      city: "Lyon",
     },
     {
       lat: 43.6047,
       lng: 1.4442,
       color: "red",
-      city:'Toulouse'
+      city: "Toulouse",
     },
     {
       lat: 43.7102,
-      lng: 7.2620,
+      lng: 7.262,
       color: "red",
-      city:'Nice'
+      city: "Nice",
     },
     {
       lat: 50.6292,
-      lng:3.0573,
+      lng: 3.0573,
       color: "red",
-      city:'Lille'
+      city: "Lille",
     },
     {
       lat: 48.5734,
       lng: 7.7521,
       color: "red",
-      city:'Strasbourg'
+      city: "Strasbourg",
     },
     {
       lat: 43.6108,
       lng: 3.8767,
       color: "red",
-      city:'Montpellier'
+      city: "Montpellier",
     },
     {
       lat: 47.2184,
       lng: -1.5536,
       color: "red",
-      city:'Nantes'
+      city: "Nantes",
     },
   ]);
+  const fun = async (lat = 47.2184, lng = -1.5536) => {
+    axios({
+      url:`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${"pk.eyJ1IjoiYWRoaXRoeWFhMzEiLCJhIjoiY2x4eW83ZzBlMDJrMjJrcXZ2ZHZ4cGFhNSJ9.oKfx4UDtPP-AQPz_UCi8zg"}&types=country`,
+      method:"GET"
+    }
+    ).then(res=>console.log(res.data));
+  };
+  useEffect(()=>{
+    fun()
+  },[])
   const [view, setView] = useState({
     longitude: 10,
     latitude: 40,
     zoom: 4,
   });
-  function closePop(){
+  function closePop() {
     setPop({
-      id:null,
-      con:false,
-    })
+      id: null,
+      con: false,
+    });
   }
   useEffect(() => {
     const hasGreenMark = marks.some((mark) => mark.color === "green");
-    features?hasGreenMark?setPolygon({
-      type: "FeatureCollection",
-          features: [features[0]],
-    }):setPolygon():''
+    features
+      ? hasGreenMark
+        ? setPolygon({
+            type: "FeatureCollection",
+            features: [features[0]],
+          })
+        : setPolygon()
+      : "";
   }, [marks]);
-  useEffect(()=>{
-    console.log(pop)
-  },[pop])
-  function handleClick(mark, index,e) {
+  function handleClick(mark, index, e) {
     e.stopPropagation();
     let map = mapRef.current.getMap();
     features = map.queryRenderedFeatures(map.project([mark.lng, mark.lat]), {
       layers: ["countries-layer"],
     });
     setPop({
-        id:index,
-        con:true,
-      })
+      id: index,
+      con: true,
+    });
   }
-  function select(index,val){
+  function select(index, val) {
     setMarks((prevMarks) =>
       prevMarks.map((mar, idx) =>
         idx === index
-          ? { ...mar, color: val == 'select' ? "green" : "red" }
+          ? { ...mar, color: val == "select" ? "green" : "red" }
           : mar
       )
     );
-    
   }
   return (
     <Map
@@ -141,7 +152,7 @@ const MarkerLayer = () => {
               borderRadius: "50%",
               cursor: "pointer",
             }}
-            onClick={(e) => handleClick(mark, index,e)}
+            onClick={(e) => handleClick(mark, index, e)}
           ></div>
         </Marker>
       ))}
@@ -156,23 +167,33 @@ const MarkerLayer = () => {
           />
         </Source>
       )}
-      {pop.con && marks.map((mark,index)=>pop.id==index?(
-      <Popup
-        key={mark.city} 
-        longitude={mark.lng}
-        latitude={mark.lat}
-        onClose={closePop}
-        anchor="bottom"
-      >
-        <div>
-          <h4>{mark.city}</h4>
-          <div style={{display:'flex',gap:'10px'}}>
-            <button onClick={()=>select(index,'select')}>Select</button>
-            <button onClick={()=>select(index,'deselect')}>Deselect</button>
-          </div>
-        </div>
-      </Popup>
-    ):'')}
+      {pop.con &&
+        marks.map((mark, index) =>
+          pop.id == index ? (
+            <Popup
+              key={mark.city}
+              longitude={mark.lng}
+              latitude={mark.lat}
+              onClose={closePop}
+              closeOnClick={true}
+              anchor="bottom"
+            >
+              <div>
+                <h4>{mark.city}</h4>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button onClick={() => select(index, "select")}>
+                    Select
+                  </button>
+                  <button onClick={() => select(index, "deselect")}>
+                    Deselect
+                  </button>
+                </div>
+              </div>
+            </Popup>
+          ) : (
+            ""
+          )
+        )}
     </Map>
   );
 };
